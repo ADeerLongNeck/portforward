@@ -10,6 +10,23 @@ const configExpanded = ref(true)
 const statusExpanded = ref(true)
 const portsExpanded = ref(true)
 
+// Toast 提示
+interface Toast {
+  id: number
+  message: string
+  type: 'success' | 'error' | 'info'
+}
+const toasts = ref<Toast[]>([])
+let toastId = 0
+
+function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+  const id = ++toastId
+  toasts.value.push({ id, message, type })
+  setTimeout(() => {
+    toasts.value = toasts.value.filter(t => t.id !== id)
+  }, 3000)
+}
+
 // 服务端配置
 const serverConfig = ref({
   listenPort: 5173,
@@ -121,10 +138,10 @@ async function saveConfig() {
         reconnect_interval: clientConfig.value.reconnectInterval
       }
     })
-    alert('配置已保存')
+    showToast('配置已保存', 'success')
   } catch (e) {
     console.error('Save config error:', e)
-    alert('保存失败: ' + e)
+    showToast('保存失败: ' + e, 'error')
   }
 }
 
@@ -137,10 +154,10 @@ async function testConnection() {
       port: clientConfig.value.serverPort
     })
     connectionStatus.value = 'connected'
-    alert('连接成功')
+    showToast('连接成功', 'success')
   } catch (e) {
     connectionStatus.value = 'disconnected'
-    alert('连接失败: ' + e)
+    showToast('连接失败: ' + e, 'error')
   }
 }
 
@@ -170,7 +187,7 @@ async function startService() {
     statusExpanded.value = true
     startStatsUpdate()
   } catch (e) {
-    alert('启动失败: ' + e)
+    showToast('启动失败: ' + e, 'error')
   }
 }
 
@@ -186,7 +203,7 @@ async function stopService() {
     connectionStatus.value = 'disconnected'
     stopStatsUpdate()
   } catch (e) {
-    alert('停止失败: ' + e)
+    showToast('停止失败: ' + e, 'error')
   }
 }
 
@@ -267,6 +284,20 @@ onMounted(() => {
 
 <template>
   <div class="app">
+    <!-- Toast 容器 -->
+    <div class="toast-container">
+      <TransitionGroup name="toast">
+        <div
+          v-for="toast in toasts"
+          :key="toast.id"
+          class="toast"
+          :class="toast.type"
+        >
+          {{ toast.message }}
+        </div>
+      </TransitionGroup>
+    </div>
+
     <!-- Header -->
     <header class="header">
       <div class="logo">
@@ -555,6 +586,69 @@ body {
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* Toast 样式 */
+.toast-container {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+.toast.success {
+  background: linear-gradient(135deg, #2d7a4f, #1a5a35);
+  color: #fff;
+  border: 1px solid #3dd68c;
+}
+
+.toast.error {
+  background: linear-gradient(135deg, #7a2d2d, #5a1a1a);
+  color: #ffb4b4;
+  border: 1px solid #ff5757;
+}
+
+.toast.info {
+  background: linear-gradient(135deg, #2d4a7a, #1a2a5a);
+  color: #b4d4ff;
+  border: 1px solid #4a9eff;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s ease;
+}
+
+.toast-enter-from {
+  opacity: 0;
+  transform: translateX(100px);
+}
+
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 </style>
 
