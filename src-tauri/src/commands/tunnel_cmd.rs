@@ -108,7 +108,7 @@ pub async fn test_connection(host: String, port: u16) -> Result<bool, String> {
 pub async fn start_server(
     port: u16,
     forward_ports: Vec<u16>,
-    _password: String,
+    password: String,
     state: State<'_, RuntimeState>,
     stats_state: State<'_, StatsState>,
 ) -> Result<(), String> {
@@ -843,7 +843,7 @@ pub struct ClientChannel {
 pub async fn start_client(
     host: String,
     port: u16,
-    _password: String,
+    password: String,
     state: State<'_, RuntimeState>,
 ) -> Result<(), String> {
     {

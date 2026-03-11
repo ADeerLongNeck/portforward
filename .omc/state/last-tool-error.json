@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd \\\"E:\\\\D\\\\hk\\\\port-forward-tauri\\\" && npm run tauri build\",\"timeout\":300000,\"description\":\"Build Tauri应用为exe\"}",
-  "error": "Exit code 1\n\n> port-forward-tauri@1.0.0 tauri\n> tauri build\n\n        Info Looking up installed tauri packages to check mismatched versions...\n        Warn The bundle identifier \"com.portforward.app\" set in `\"tauri.conf.json\" identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.\n     Running beforeBuildCommand `npm run build`\n\n> port-forward-tauri@1.0.0 build\n> vue-tsc --noEmit && vite build\n\n\u001b[36mvite v5.4.21 \u001b[32mbuilding for ...",
-  "timestamp": "2026-03-10T13:08:55.254Z",
+  "tool_input_preview": "{\"command\":\"cd E:/D/hk/port-forward-tauri && git pull --rebase origin main && git push origin main\",\"description\":\"Pull and push\"}",
+  "error": "Exit code 128\nerror: cannot pull with rebase: You have unstaged changes.\nerror: Please commit or stash them.",
+  "timestamp": "2026-03-11T10:46:26.559Z",
   "retry_count": 2
 }

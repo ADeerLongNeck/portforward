@@ -156,13 +156,13 @@ async function startService() {
       await invoke('start_server', {
         port: serverConfig.value.listenPort,
         password: serverConfig.value.password,
-        forward_ports: forwardPorts
+        forwardPorts: forwardPorts
       })
     } else {
       await invoke('start_client', {
         host: clientConfig.value.serverHost,
         port: clientConfig.value.serverPort,
-        _password: clientConfig.value.password
+        password: clientConfig.value.password
       })
     }
     isRunning.value = true

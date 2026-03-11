@@ -138,9 +138,21 @@
   "hotPaths": [
     {
       "path": "src\\App.vue",
-      "accessCount": 31,
-      "lastAccessed": 1773149557570,
+      "accessCount": 50,
+      "lastAccessed": 1773242391402,
       "type": "file"
+    },
+    {
+      "path": "src-tauri\\src\\commands\\tunnel_cmd.rs",
+      "accessCount": 10,
+      "lastAccessed": 1773242374862,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 4,
+      "lastAccessed": 1773242326388,
+      "type": "directory"
     },
     {
       "path": "src-tauri\\tauri.conf.json",
@@ -155,12 +167,6 @@
       "type": "file"
     },
     {
-      "path": "src",
-      "accessCount": 1,
-      "lastAccessed": 1773136512012,
-      "type": "directory"
-    },
-    {
       "path": "package.json",
       "accessCount": 1,
       "lastAccessed": 1773137110517,
@@ -171,6 +177,18 @@
       "accessCount": 1,
       "lastAccessed": 1773147265745,
       "type": "file"
+    },
+    {
+      "path": "src-tauri\\src\\gui.rs",
+      "accessCount": 1,
+      "lastAccessed": 1773241472024,
+      "type": "file"
+    },
+    {
+      "path": "src-tauri\\src",
+      "accessCount": 1,
+      "lastAccessed": 1773241502073,
+      "type": "directory"
     }
   ],
   "userDirectives": []
