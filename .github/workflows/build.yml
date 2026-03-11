@@ -33,6 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libglib2.0-dev
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -61,7 +67,7 @@ jobs:
       - name: Find artifact (Linux)
         if: runner.os == 'Linux'
         run: |
-          find src-tauri/target/${{ matrix.target }}/release/bundle/appimage -name "*.AppImage" -exec mv {} PortForward-linux-x64.AppImage \;
+          find src-tauri/target/${{ matrix.target }}/release/bundle/appimage -name "*.AppImage" -exec mv {} ${{ matrix.artifact }}.AppImage \;
 
       - name: Find artifact (macOS)
         if: runner.os == 'macOS'
