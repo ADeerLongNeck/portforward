@@ -1,6 +1,8 @@
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
+use sha2::{Sha256, Digest};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -162,27 +164,28 @@ pub async fn start_server(
                     match listener.accept().await {
                         Ok((stream, client_addr)) => {
                             tracing::info!("New tunnel client from {}", client_addr);
-
-                            // Increment tunnel client count
-                            stats_for_tunnel.inc_connections();
+                            // Note: Don't increment connection count here for tunnel client
+                            // Connection count tracks SOCKS5 connections per port
 
                             let status_clone2 = status_clone.clone();
                             let tunnel_state_clone2 = tunnel_state_clone.clone();
                             let forward_stats_clone2 = forward_stats_clone.clone();
                             let stats_for_tunnel_clone = stats_for_tunnel.clone();
 
+                            let password_clone = password.clone();
                             tokio::spawn(async move {
                                 if let Err(e) = handle_tunnel_server(
                                     stream,
                                     tunnel_state_clone2,
                                     forward_stats_clone2,
                                     stats_for_tunnel_clone.clone(),
+                                    password_clone,
                                 ).await {
                                     tracing::error!("Tunnel client {} error: {}", client_addr, e);
                                 }
 
-                                // Decrement tunnel client count
-                                stats_for_tunnel_clone.dec_connections();
+                                // Note: Don't decrement tunnel client count
+                                // Connection count only tracks SOCKS5 connections
 
                                 // Reset status when tunnel disconnects
                                 let mut status = status_clone2.write().await;
@@ -239,11 +242,55 @@ async fn handle_tunnel_server(
     tunnel_state: Arc<Mutex<Option<Arc<Mutex<TunnelState>>>>>,
     forward_stats: Arc<RwLock<HashMap<u16, ForwardedPort>>>,
     stats_state: StatsState,
+    password: String,
 ) -> Result<(), std::io::Error> {
     let framed = Framed::new(stream, FrameCodec::new());
 
     // Split into read and write halves
     let (mut sink, mut stream) = framed.split();
+
+    // === Password Authentication ===
+    // Generate random nonce for challenge
+    let nonce: [u8; 16] = rand::thread_rng().gen();
+    let challenge_frame = Frame::auth_challenge(Bytes::copy_from_slice(&nonce));
+
+    // Send challenge
+    sink.send(challenge_frame).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+
+    // Wait for response with timeout
+    let auth_result = tokio::time::timeout(
+        tokio::time::Duration::from_secs(10),
+        stream.next()
+    ).await;
+
+    match auth_result {
+        Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthResponse => {
+            // Verify password: response should be SHA256(nonce + password)
+            let mut hasher = Sha256::new();
+            hasher.update(&nonce);
+            hasher.update(password.as_bytes());
+            let expected = hasher.finalize();
+
+            if frame.payload.as_ref() != expected.as_slice() {
+                tracing::error!("Authentication failed: wrong password");
+                sink.send(Frame::new(FrameType::AuthFailure, 0, Bytes::new())).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Authentication failed"));
+            }
+
+            // Send success
+            sink.send(Frame::new(FrameType::AuthSuccess, 0, Bytes::new())).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            tracing::info!("Client authenticated successfully");
+        }
+        Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthFailure => {
+            tracing::error!("Client reported auth failure");
+            return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Auth failure"));
+        }
+        _ => {
+            tracing::error!("Authentication timeout or invalid response");
+            return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "Auth timeout"));
+        }
+    }
+    // === End Authentication ===
 
     // Create channel for sending frames to tunnel
     let (tunnel_tx, mut tunnel_rx) = mpsc::channel::<Frame>(256);
@@ -866,6 +913,7 @@ pub async fn start_client(
 
     let addr = format!("{}:{}", host, port);
     let status_clone = state.status.clone();
+    let password_clone = password.clone();
 
     let handle = tokio::spawn(async move {
         // Retry loop for reconnection
@@ -874,13 +922,14 @@ pub async fn start_client(
                 Ok(stream) => {
                     tracing::info!("Connected to server {}", addr);
 
-                    {
-                        let mut status = status_clone.write().await;
-                        *status = ConnectionStatus::Connected;
-                    }
-
-                    if let Err(e) = handle_client_tunnel(stream).await {
+                    if let Err(e) = handle_client_tunnel(stream, password_clone.clone()).await {
                         tracing::error!("Connection error: {}", e);
+                        // If auth failed, don't retry
+                        if e.kind() == std::io::ErrorKind::PermissionDenied {
+                            let mut status = status_clone.write().await;
+                            *status = ConnectionStatus::Error;
+                            return;
+                        }
                     }
 
                     tracing::info!("Disconnected from server, will retry...");
@@ -919,9 +968,59 @@ pub async fn start_client(
 }
 
 /// Handle client tunnel connection
-async fn handle_client_tunnel(stream: TcpStream) -> Result<(), std::io::Error> {
+async fn handle_client_tunnel(stream: TcpStream, password: String) -> Result<(), std::io::Error> {
     let framed = Framed::new(stream, FrameCodec::new());
     let (mut sink, mut stream) = framed.split();
+
+    // === Password Authentication ===
+    // Wait for challenge from server
+    let auth_result = tokio::time::timeout(
+        tokio::time::Duration::from_secs(10),
+        stream.next()
+    ).await;
+
+    match auth_result {
+        Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthChallenge => {
+            // Compute response: SHA256(nonce + password)
+            let mut hasher = Sha256::new();
+            hasher.update(&frame.payload);
+            hasher.update(password.as_bytes());
+            let response = hasher.finalize();
+
+            // Send response
+            sink.send(Frame::auth_response(Bytes::copy_from_slice(&response))).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            tracing::debug!("Sent auth response");
+        }
+        Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthFailure => {
+            tracing::error!("Server rejected authentication");
+            return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Auth rejected"));
+        }
+        _ => {
+            tracing::error!("Did not receive auth challenge from server");
+            return Err(std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "No auth challenge"));
+        }
+    }
+
+    // Wait for auth success
+    let auth_result = tokio::time::timeout(
+        tokio::time::Duration::from_secs(10),
+        stream.next()
+    ).await;
+
+    match auth_result {
+        Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthSuccess => {
+            tracing::info!("Authentication successful");
+        }
+        Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthFailure => {
+            tracing::error!("Authentication failed: wrong password");
+            return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Wrong password"));
+        }
+        _ => {
+            tracing::error!("Did not receive auth result from server");
+            return Err(std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "No auth result"));
+        }
+    }
+    // === End Authentication ===
 
     let (tunnel_tx, mut tunnel_rx) = mpsc::channel::<Frame>(256);
     let channels: Arc<Mutex<HashMap<u32, ClientChannel>>> = Arc::new(Mutex::new(HashMap::new()));

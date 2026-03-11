@@ -52,10 +52,17 @@ pub struct ConfigState {
 
 impl ConfigState {
     pub fn new() -> Self {
-        let config_path = std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(|p| p.join("config.json")))
+        // Use standard config directory for cross-platform compatibility
+        let config_path = dirs::config_dir()
+            .map(|config_dir| {
+                let app_dir = config_dir.join("port-forward");
+                // Create directory if it doesn't exist
+                let _ = std::fs::create_dir_all(&app_dir);
+                app_dir.join("config.json")
+            })
             .unwrap_or_else(|| PathBuf::from("config.json"));
+
+        tracing::info!("Config path: {:?}", config_path);
 
         Self {
             config: Arc::new(RwLock::new(AppConfig::default())),
