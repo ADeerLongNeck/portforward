@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo check:*)",
+      "Bash(cargo build:*)",
+      "Bash(npm run:*)",
+      "Bash(./target/release/port-forward-tauri.exe:*)",
+      "mcp__plugin_oh-my-claudecode_t__project_memory_read",
+      "mcp__plugin_oh-my-claudecode_t__state_write",
+      "mcp__plugin_oh-my-claudecode_t__state_clear",
+      "mcp__plugin_oh-my-claudecode_t__state_read",
+      "Bash(dev && && npm run dev)",
+      "mcp__plugin_oh-my-claudecode_t__state_list_active"
+    ]
+  }
+}

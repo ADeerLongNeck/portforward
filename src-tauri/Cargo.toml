@@ -1,0 +1,79 @@
+[package]
+name = "port-forward-tauri"
+version = "1.0.0"
+description = "A small, fast, secure cross-platform port forwarding application"
+authors = ["you"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [], optional = true }
+
+[dependencies]
+# Tauri (optional for CLI mode)
+tauri = { version = "2", features = ["tray-icon"], optional = true }
+tauri-plugin-shell = { version = "2", optional = true }
+
+# CLI support
+clap = { version = "4", features = ["derive"], optional = true }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec", "io"] }
+futures = "0.3"
+
+# Networking
+bytes = "1"
+tokio-stream = "0.1"
+
+# Crypto
+aes-gcm = "0.10"
+sha2 = "0.10"
+hmac = "0.12"
+rand = "0.8"
+crc32fast = "1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Config hot reload
+notify = "6"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Data structures
+dashmap = "5"
+parking_lot = "0.12"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Utils
+uuid = { version = "1", features = ["v4", "serde"] }
+base64 = "0.22"
+hex = "0.4"
+dirs = "5"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "shellapi"], optional = true }
+
+[features]
+default = ["gui"]
+gui = ["custom-protocol", "dep:tauri", "dep:tauri-plugin-shell", "dep:tauri-build", "dep:winapi"]
+cli = ["dep:clap"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[[bin]]
+name = "port-forward"
+path = "src/main.rs"
+
+[lib]
+name = "port_forward_tauri"
+path = "src/lib.rs"

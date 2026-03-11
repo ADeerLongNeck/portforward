@@ -1,0 +1,45 @@
+{
+  "updatedAt": "2026-03-10T09:43:12.849Z",
+  "missions": [
+    {
+      "id": "session:2bcf38a5-b137-4f7d-a539-bc3654069f7f:autopilot",
+      "source": "session",
+      "name": "autopilot",
+      "objective": "Session mission",
+      "createdAt": "2026-03-10T09:43:12.849Z",
+      "updatedAt": "2026-03-10T09:43:12.849Z",
+      "status": "running",
+      "workerCount": 1,
+      "taskCounts": {
+        "total": 1,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 1,
+        "completed": 0,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "architect:ab61006",
+          "role": "architect",
+          "ownership": "ab610066588dc80c2",
+          "status": "running",
+          "currentStep": null,
+          "latestUpdate": null,
+          "completedSummary": null,
+          "updatedAt": "2026-03-10T09:43:12.849Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:ab610066588dc80c2:2026-03-10T09:43:12.849Z",
+          "at": "2026-03-10T09:43:12.849Z",
+          "kind": "update",
+          "agent": "architect:ab61006",
+          "detail": "started architect:ab61006",
+          "sourceKey": "session-start:ab610066588dc80c2"
+        }
+      ]
+    }
+  ]
+}
