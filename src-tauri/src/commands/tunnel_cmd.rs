@@ -922,17 +922,20 @@ pub async fn start_client(
                 Ok(stream) => {
                     tracing::info!("Connected to server {}", addr);
 
-                    if let Err(e) = handle_client_tunnel(stream, password_clone.clone()).await {
-                        tracing::error!("Connection error: {}", e);
-                        // If auth failed, don't retry
-                        if e.kind() == std::io::ErrorKind::PermissionDenied {
-                            let mut status = status_clone.write().await;
-                            *status = ConnectionStatus::Error;
-                            return;
+                    match handle_client_tunnel(stream, password_clone.clone(), status_clone.clone()).await {
+                        Ok(_) => {
+                            tracing::info!("Disconnected from server, will retry...");
+                        }
+                        Err(e) => {
+                            tracing::error!("Connection error: {}", e);
+                            // If auth failed, don't retry
+                            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                                let mut status = status_clone.write().await;
+                                *status = ConnectionStatus::Error;
+                                return;
+                            }
                         }
                     }
-
-                    tracing::info!("Disconnected from server, will retry...");
                 }
                 Err(e) => {
                     tracing::error!("Failed to connect to {}: {}", addr, e);
@@ -968,7 +971,11 @@ pub async fn start_client(
 }
 
 /// Handle client tunnel connection
-async fn handle_client_tunnel(stream: TcpStream, password: String) -> Result<(), std::io::Error> {
+async fn handle_client_tunnel(
+    stream: TcpStream,
+    password: String,
+    status: Arc<RwLock<ConnectionStatus>>,
+) -> Result<(), std::io::Error> {
     let framed = Framed::new(stream, FrameCodec::new());
     let (mut sink, mut stream) = framed.split();
 
@@ -1010,6 +1017,11 @@ async fn handle_client_tunnel(stream: TcpStream, password: String) -> Result<(),
     match auth_result {
         Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthSuccess => {
             tracing::info!("Authentication successful");
+            // Set status to Connected after successful auth
+            {
+                let mut s = status.write().await;
+                *s = ConnectionStatus::Connected;
+            }
         }
         Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthFailure => {
             tracing::error!("Authentication failed: wrong password");
