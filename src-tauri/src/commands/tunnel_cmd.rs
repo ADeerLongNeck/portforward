@@ -280,6 +280,9 @@ async fn handle_tunnel_server(
             // Send success
             sink.send(Frame::new(FrameType::AuthSuccess, 0, Bytes::new())).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
             tracing::info!("Client authenticated successfully");
+
+            // Increment active connections (tunnel client count)
+            stats_state.inc_connections();
         }
         Ok(Some(Ok(frame))) if frame.frame_type == FrameType::AuthFailure => {
             tracing::error!("Client reported auth failure");
@@ -353,6 +356,9 @@ async fn handle_tunnel_server(
         let mut ts = tunnel_state.lock().await;
         *ts = None;
     }
+
+    // Decrement active connections (tunnel client count)
+    stats_state.dec_connections();
 
     tracing::info!("Tunnel server connection closed");
     Ok(())
@@ -452,8 +458,8 @@ async fn start_local_forwarder(
                                 }
                             }
 
-                            // Increment global active connections
-                            stats_state.inc_connections();
+                            // Note: Don't increment global active_connections for SOCKS5 connections
+                            // active_connections tracks tunnel clients, not SOCKS5 connections
 
                             let tunnel_state_clone = tunnel_state.clone();
                             let forward_stats_for_conn = forward_stats.clone();
